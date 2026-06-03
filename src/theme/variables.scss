@@ -1,0 +1,75 @@
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  --color-bg: #f6f6f6;
+  --color-surface: #ffffff;
+  --color-text: #111111;
+  --color-text-secondary: #444444;
+  --color-text-muted: #777777;
+  --color-border: #e1e1e1;
+  --color-focus: #8ab4ff;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 30px;
+  --space-9: 40px;
+  --space-10: 48px;
+  --space-12: 60px;
+  --space-14: 80px;
+
+  --ease-default: cubic-bezier(0.2, 0, 0.4, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 400ms;
+
+  --ion-font-family: var(--font-sans);
+  --ion-background-color: var(--color-bg);
+  --ion-text-color: var(--color-text);
+  --ion-toolbar-background: var(--color-surface);
+  --ion-toolbar-color: var(--color-text);
+  --ion-border-color: var(--color-border);
+}
+
+html.dark {
+  --color-bg: #111111;
+  --color-surface: #222222;
+  --color-text: #f6f6f6;
+  --color-text-secondary: #bbbbbb;
+  --color-text-muted: #bbbbbb;
+  --color-border: #333333;
+
+  --ion-background-color: var(--color-bg);
+  --ion-text-color: var(--color-text);
+  --ion-toolbar-background: var(--color-surface);
+  --ion-toolbar-color: var(--color-text);
+  --ion-border-color: var(--color-border);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

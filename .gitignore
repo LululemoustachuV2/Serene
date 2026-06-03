@@ -9,9 +9,8 @@
 
 # Node modules and dependency files
 /node_modules/
-/package-lock.json
 /yarn.lock
-
+x
 # Environment files
 /.env
 
@@ -26,3 +25,5 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.md
+/www/
