@@ -1,0 +1,50 @@
+.sound-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) 0;
+}
+
+.sound-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    background-color var(--duration-fast) var(--ease-default);
+
+  ion-icon {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    transition: color var(--duration-fast) var(--ease-default);
+  }
+
+  &:hover {
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
+
+  &.active {
+    border-color: var(--color-text);
+    background: var(--color-surface);
+    color: var(--color-text);
+
+    ion-icon {
+      color: var(--color-text);
+    }
+  }
+}

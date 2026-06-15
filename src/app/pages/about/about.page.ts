@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { IonContent, IonHeader, IonToolbar, IonTitle } from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-about',
@@ -9,8 +9,13 @@ import { IonContent, IonHeader, IonToolbar, IonTitle } from '@ionic/angular/stan
         <ion-title>À propos</ion-title>
       </ion-toolbar>
     </ion-header>
-    <ion-content class="ion-padding">
-      <p>À propos</p>
+    <ion-content>
+      <div class="page-stack">
+        <p class="empty-state">
+          Serene est une application de méditation minimaliste. Chronométrez vos sessions, choisissez une ambiance
+          sonore et suivez votre pratique au fil du temps.
+        </p>
+      </div>
     </ion-content>
   `,
   imports: [IonContent, IonHeader, IonToolbar, IonTitle],

@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, Subscription, interval } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, combineLatest, interval } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
+export type TimerState = 'idle' | 'preparing' | 'running' | 'paused' | 'completed';
 
 export interface TimerStatus {
   remainingSeconds: number;
@@ -11,19 +11,26 @@ export interface TimerStatus {
   state: TimerState;
   minutes: number;
   seconds: number;
-  estimatedEnd?: number; // timestamp in ms
+  estimatedEnd?: number;
+  isWarmup: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class TimerService {
-  readonly duration$ = new BehaviorSubject<number>(10); // minutes
-  readonly remaining$ = new BehaviorSubject<number>(0); // seconds
+  readonly duration$ = new BehaviorSubject<number>(10);
+  readonly remaining$ = new BehaviorSubject<number>(0);
   readonly state$ = new BehaviorSubject<TimerState>('idle');
 
   private tickSubscription?: Subscription;
+  private sessionTotalSeconds = 0;
+  private warmupTotalSeconds = 0;
 
-  readonly status$: Observable<TimerStatus> = this.remaining$.pipe(
-    map(() => this.getStatus()),
+  readonly status$: Observable<TimerStatus> = combineLatest([
+    this.remaining$,
+    this.state$,
+    this.duration$,
+  ]).pipe(
+    map(([remaining, state, duration]) => this.getStatus(remaining, state, duration)),
   );
 
   setDuration(minutes: number): void {
@@ -32,12 +39,23 @@ export class TimerService {
     }
   }
 
-  start(): void {
-    const total = this.duration$.value * 60;
-    if (this.state$.value === 'idle') {
-      this.remaining$.next(total);
+  start(warmupSeconds = 10): void {
+    if (this.state$.value !== 'idle') return;
+
+    this.sessionTotalSeconds = this.duration$.value * 60;
+    const warmup = Math.max(0, Math.floor(warmupSeconds));
+
+    if (warmup <= 0) {
+      this.warmupTotalSeconds = 0;
+      this.remaining$.next(this.sessionTotalSeconds);
+      this.state$.next('running');
+      this.startTicking();
+      return;
     }
-    this.state$.next('running');
+
+    this.warmupTotalSeconds = warmup;
+    this.remaining$.next(warmup);
+    this.state$.next('preparing');
     this.startTicking();
   }
 
@@ -58,33 +76,50 @@ export class TimerService {
   stop(): void {
     this.state$.next('idle');
     this.stopTicking();
+    this.sessionTotalSeconds = 0;
+    this.warmupTotalSeconds = 0;
     this.remaining$.next(0);
   }
 
-  /** Adjust the remaining time by minutes during a session (running or paused) */
+  reset(): void {
+    this.stop();
+  }
+
   adjustMinutes(delta: number): void {
     if (this.state$.value === 'running' || this.state$.value === 'paused') {
       const next = Math.max(0, this.remaining$.value + Math.floor(delta) * 60);
       this.remaining$.next(next);
-      // Optionally keep duration in sync when user explicitly changes minutes
-      this.duration$.next(Math.max(1, Math.ceil((this.remaining$.value) / 60)));
     }
   }
 
   private startTicking(): void {
     if (this.tickSubscription) return;
-    this.tickSubscription = interval(1000).subscribe(() => {
-      if (this.state$.value !== 'running') return;
-      const next = this.remaining$.value - 1;
+    this.tickSubscription = interval(1000).subscribe(() => this.onTick());
+  }
+
+  private onTick(): void {
+    const state = this.state$.value;
+    if (state !== 'preparing' && state !== 'running') return;
+
+    const next = this.remaining$.value - 1;
+
+    if (state === 'preparing') {
       if (next <= 0) {
-        this.remaining$.next(0);
-        this.state$.next('completed');
-        this.stopTicking();
-        this.playSound();
-      } else {
-        this.remaining$.next(next);
+        this.remaining$.next(this.sessionTotalSeconds);
+        this.state$.next('running');
+        return;
       }
-    });
+      this.remaining$.next(next);
+      return;
+    }
+
+    if (next <= 0) {
+      this.remaining$.next(0);
+      this.state$.next('completed');
+      this.stopTicking();
+    } else {
+      this.remaining$.next(next);
+    }
   }
 
   private stopTicking(): void {
@@ -92,38 +127,25 @@ export class TimerService {
     this.tickSubscription = undefined;
   }
 
-  private getStatus(): TimerStatus {
-    const total = this.duration$.value * 60;
-    const remaining = Math.max(0, this.remaining$.value);
-    const now = Date.now();
+  private getStatus(remainingRaw: number, state: TimerState, durationMinutes: number): TimerStatus {
+    const remaining = Math.max(0, remainingRaw);
+    const isWarmup = state === 'preparing';
+    const total = isWarmup
+      ? this.warmupTotalSeconds
+      : this.sessionTotalSeconds > 0
+        ? this.sessionTotalSeconds
+        : durationMinutes * 60;
+    const isSessionActive = state === 'running' || state === 'paused';
+
     return {
       remainingSeconds: remaining,
       totalSeconds: total,
       progress: total > 0 ? remaining / total : 0,
-      state: this.state$.value,
+      state,
       minutes: Math.floor(remaining / 60),
       seconds: remaining % 60,
-      estimatedEnd: remaining > 0 ? now + remaining * 1000 : now,
+      estimatedEnd: isSessionActive ? Date.now() + remaining * 1000 : undefined,
+      isWarmup,
     };
-  }
-
-  private playSound(): void {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'sine';
-      o.frequency.value = 880;
-      g.gain.value = 0.1;
-      o.connect(g);
-      g.connect(ctx.destination);
-      o.start();
-      setTimeout(() => {
-        o.stop();
-        ctx.close();
-      }, 150);
-    } catch (e) {
-      // ignore if audio is not available
-    }
   }
 }

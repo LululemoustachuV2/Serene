@@ -1,38 +1,86 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { TimerStatus } from '../../services/timer.service';
 
 @Component({
   selector: 'app-timer-circle',
   template: `
-    <div style="display:flex;flex-direction:column;align-items:center">
-      <svg viewBox="0 0 200 200" width="200" height="200">
-        <circle cx="100" cy="100" r="90" class="track" stroke="#eee" stroke-width="12" fill="none" />
+    <div class="timer-circle">
+      <svg viewBox="0 0 200 200" width="220" height="220" aria-hidden="true">
+        <circle cx="100" cy="100" r="88" class="track" stroke-width="2" fill="none" />
         <circle
-          cx="100" cy="100" r="90"
+          cx="100"
+          cy="100"
+          r="88"
           class="progress"
-          stroke="#2dd36f"
-          stroke-width="12"
+          [class.progress--warmup]="status.isWarmup"
+          stroke-width="2"
           fill="none"
           [attr.stroke-dasharray]="circumference"
           [attr.stroke-dashoffset]="dashOffset"
           stroke-linecap="round"
           transform="rotate(-90 100 100)"
         />
-        <text x="100" y="95" class="value" text-anchor="middle" font-size="28" fill="#222">
+        <text x="100" y="92" class="value" text-anchor="middle">
           {{ pad(status.minutes) }}:{{ pad(status.seconds) }}
         </text>
-        <text x="100" y="125" class="hint" text-anchor="middle" font-size="12" fill="#666">
+        <text x="100" y="118" class="hint" text-anchor="middle">
           {{ hint }}
         </text>
       </svg>
-      <div style="margin-top:8px;color:#666;font-size:14px">
-        <span *ngIf="status.state !== 'idle'">Fin estimée : {{ formatEnd(status.estimatedEnd) }}</span>
-      </div>
+      @if (status.state === 'running' || status.state === 'paused') {
+        <p class="estimated-end">Fin estimée · {{ formatEnd(status.estimatedEnd) }}</p>
+      }
     </div>
   `,
+  styles: [
+    `
+      .timer-circle {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      .track {
+        stroke: var(--color-border);
+      }
+
+      .progress {
+        stroke: var(--color-text);
+        transition: stroke-dashoffset var(--duration-normal) var(--ease-default);
+      }
+
+      .progress--warmup {
+        stroke: var(--color-text-muted);
+      }
+
+      .value {
+        fill: var(--color-text);
+        font-family: var(--font-mono);
+        font-size: 2rem;
+        font-weight: 500;
+        letter-spacing: -0.04em;
+      }
+
+      .hint {
+        fill: var(--color-text-muted);
+        font-family: var(--font-sans);
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .estimated-end {
+        margin: 0;
+        color: var(--color-text-muted);
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        letter-spacing: 0.02em;
+      }
+    `,
+  ],
   standalone: true,
-  imports: [CommonModule],
 })
 export class TimerCircleComponent {
   @Input() status: TimerStatus = {
@@ -42,12 +90,12 @@ export class TimerCircleComponent {
     state: 'idle',
     minutes: 0,
     seconds: 0,
-    estimatedEnd: Date.now(),
+    isWarmup: false,
   };
 
   @Input() hint = '';
 
-  readonly radius = 90;
+  readonly radius = 88;
   readonly circumference = 2 * Math.PI * this.radius;
 
   get dashOffset(): number {
