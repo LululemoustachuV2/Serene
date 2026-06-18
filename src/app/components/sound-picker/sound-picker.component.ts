@@ -7,21 +7,36 @@ import { AmbientSound } from '../../services/audio.service';
 @Component({
   selector: 'app-sound-picker',
   template: `
-    <div class="sound-grid">
-      @for (s of sounds; track s.id) {
-        <button
-          type="button"
-          class="sound-chip"
-          [class.active]="s.id === active"
-          (click)="select.emit(s.id)"
-          (mouseenter)="preview.emit(s.id)"
-          (mouseleave)="stopPreview.emit()"
-        >
-          <ion-icon [name]="s.icon"></ion-icon>
-          <span>{{ s.label }}</span>
-        </button>
-      }
-    </div>
+    @if (compact) {
+      <div class="sound-row">
+        @for (s of sounds; track s.id) {
+          <button
+            type="button"
+            class="sound-icon"
+            [class.active]="s.id === active"
+            [attr.title]="s.label"
+            [attr.aria-label]="s.label"
+            (click)="select.emit(s.id)"
+          >
+            <ion-icon [name]="s.icon" aria-hidden="true" />
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="sound-grid">
+        @for (s of sounds; track s.id) {
+          <button
+            type="button"
+            class="sound-chip"
+            [class.active]="s.id === active"
+            (click)="select.emit(s.id)"
+          >
+            <ion-icon [name]="s.icon" />
+            <span>{{ s.label }}</span>
+          </button>
+        }
+      </div>
+    }
   `,
   standalone: true,
   imports: [IonIcon],
@@ -29,9 +44,8 @@ import { AmbientSound } from '../../services/audio.service';
 })
 export class SoundPickerComponent {
   @Input() active: AmbientSound = 'silence';
+  @Input() compact = false;
   @Output() select = new EventEmitter<AmbientSound>();
-  @Output() preview = new EventEmitter<AmbientSound>();
-  @Output() stopPreview = new EventEmitter<void>();
 
   sounds = [
     { id: 'silence', label: 'Silence', icon: 'volume-mute' },

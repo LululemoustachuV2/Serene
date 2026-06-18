@@ -5,24 +5,28 @@ export type AmbientSound = 'silence' | 'brown-noise' | 'white-noise' | 'rain' | 
 @Injectable({ providedIn: 'root' })
 export class AudioService {
   private ctx: AudioContext;
-  private gainNode: GainNode;
+  private masterGain: GainNode;
+  private ambientGain: GainNode;
   private source?: AudioBufferSourceNode;
   private windFilter?: BiquadFilterNode;
-  private lfo?: OscillatorNode;
-  private lfoGain?: GainNode;
+  private oceanLfo?: OscillatorNode;
+  private oceanLfoGain?: GainNode;
   currentSound: AmbientSound = 'silence';
   volume = 0.5;
 
   constructor() {
-    this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    this.gainNode = this.ctx.createGain();
-    this.gainNode.gain.value = this.volume;
-    this.gainNode.connect(this.ctx.destination);
+    this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    this.masterGain = this.ctx.createGain();
+    this.ambientGain = this.ctx.createGain();
+    this.masterGain.gain.value = 1;
+    this.ambientGain.gain.value = this.volume;
+    this.ambientGain.connect(this.masterGain);
+    this.masterGain.connect(this.ctx.destination);
   }
 
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, v));
-    this.gainNode.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.01);
+    this.ambientGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.02);
   }
 
   async ensureContext(): Promise<void> {
@@ -31,17 +35,66 @@ export class AudioService {
     }
   }
 
+  /** Gong doux au début de la méditation (après l'installation). */
+  playGong(): void {
+    const now = this.ctx.currentTime;
+    const partials = [
+      { freq: 136.1, gain: 0.22, decay: 5 },
+      { freq: 272.2, gain: 0.08, decay: 4 },
+      { freq: 408.3, gain: 0.04, decay: 3 },
+    ];
+
+    for (const { freq, gain, decay } of partials) {
+      const osc = this.ctx.createOscillator();
+      const env = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.exponentialRampToValueAtTime(gain, now + 0.04);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+      osc.connect(env);
+      env.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + decay + 0.1);
+    }
+  }
+
+  /** Gong d'intervalle — plus léger, toutes les minutes. */
+  playIntervalGong(): void {
+    const now = this.ctx.currentTime;
+    const partials = [
+      { freq: 136.1, gain: 0.12, decay: 2.5 },
+      { freq: 272.2, gain: 0.04, decay: 2 },
+    ];
+
+    for (const { freq, gain, decay } of partials) {
+      const osc = this.ctx.createOscillator();
+      const env = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.exponentialRampToValueAtTime(gain, now + 0.03);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+      osc.connect(env);
+      env.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + decay + 0.1);
+    }
+  }
+
+  /** Cloche de fin de session. */
   playBell(): void {
+    const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const env = this.ctx.createGain();
-    osc.frequency.value = 880;
+    osc.frequency.value = 523.25;
     osc.type = 'sine';
-    env.gain.setValueAtTime(0.3, this.ctx.currentTime);
-    env.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2);
+    env.gain.setValueAtTime(0.25, now);
+    env.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
     osc.connect(env);
-    env.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + 2);
+    env.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 2.6);
   }
 
   play(sound: AmbientSound): void {
@@ -51,24 +104,34 @@ export class AudioService {
 
     switch (sound) {
       case 'white-noise':
-        this.source = this.createLoopingSource((data) => this.fillWhiteNoise(data), this.gainNode);
+        this.source = this.createLoopingSource((data) => this.fillWhiteNoise(data), this.ambientGain);
         break;
       case 'brown-noise':
-        this.source = this.createLoopingSource((data) => this.fillBrownNoise(data), this.gainNode);
+        this.source = this.createLoopingSource((data) => this.fillBrownNoise(data), this.ambientGain);
         break;
       case 'rain':
-        this.source = this.createLoopingSource((data) => this.fillRain(data), this.gainNode);
+        this.source = this.createLoopingSource((data) => this.fillRain(data), this.ambientGain);
         break;
-      case 'ocean':
-        this.source = this.createLoopingSource((data) => this.fillBrownNoise(data), this.gainNode);
-        this.createLFO(0.1, 0.3);
+      case 'ocean': {
+        const oceanGain = this.ctx.createGain();
+        oceanGain.gain.value = 0.35;
+        oceanGain.connect(this.ambientGain);
+        this.source = this.createLoopingSource((data) => this.fillBrownNoise(data), oceanGain);
+        this.oceanLfo = this.ctx.createOscillator();
+        this.oceanLfoGain = this.ctx.createGain();
+        this.oceanLfo.frequency.value = 0.08;
+        this.oceanLfoGain.gain.value = 0.2;
+        this.oceanLfo.connect(this.oceanLfoGain);
+        this.oceanLfoGain.connect(oceanGain.gain);
+        this.oceanLfo.start();
         break;
+      }
       case 'wind':
-        // white noise through a high-pass filter
         this.windFilter = this.ctx.createBiquadFilter();
         this.windFilter.type = 'highpass';
-        this.windFilter.frequency.value = 800;
-        this.windFilter.connect(this.gainNode);
+        this.windFilter.frequency.value = 600;
+        this.windFilter.Q.value = 0.7;
+        this.windFilter.connect(this.ambientGain);
         this.source = this.createLoopingSource((data) => this.fillWhiteNoise(data), this.windFilter);
         break;
     }
@@ -79,7 +142,8 @@ export class AudioService {
     this.currentSound = 'silence';
   }
 
-  stopPreview(): void {
+  /** Arrête la lecture sans modifier l'ambiance sélectionnée. */
+  halt(): void {
     this.stopPlayback();
   }
 
@@ -97,22 +161,24 @@ export class AudioService {
       this.windFilter.disconnect();
       this.windFilter = undefined;
     }
-    if (this.lfo) {
+    if (this.oceanLfo) {
       try {
-        this.lfo.stop();
-      } catch {}
-      this.lfo.disconnect();
-      this.lfo = undefined;
+        this.oceanLfo.stop();
+      } catch {
+        // ignore
+      }
+      this.oceanLfo.disconnect();
+      this.oceanLfo = undefined;
     }
-    if (this.lfoGain) {
-      this.lfoGain.disconnect();
-      this.lfoGain = undefined;
+    if (this.oceanLfoGain) {
+      this.oceanLfoGain.disconnect();
+      this.oceanLfoGain = undefined;
     }
   }
 
   private createLoopingSource(
     fill: (data: Float32Array) => void,
-    destination: AudioNode
+    destination: AudioNode,
   ): AudioBufferSourceNode {
     const bufSize = this.ctx.sampleRate * 2;
     const source = this.ctx.createBufferSource();
@@ -123,16 +189,6 @@ export class AudioService {
     source.connect(destination);
     source.start();
     return source;
-  }
-
-  private createLFO(freq: number, depth: number): void {
-    this.lfo = this.ctx.createOscillator();
-    this.lfoGain = this.ctx.createGain();
-    this.lfo.frequency.value = freq;
-    this.lfoGain.gain.value = depth;
-    this.lfo.connect(this.lfoGain);
-    this.lfoGain.connect(this.gainNode.gain);
-    this.lfo.start();
   }
 
   private fillWhiteNoise(data: Float32Array): void {
