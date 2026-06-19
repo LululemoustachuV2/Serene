@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   IonContent,
   IonItem,
@@ -11,6 +12,8 @@ import {
 } from '@ionic/angular/standalone';
 import { Subscription } from 'rxjs';
 import { Settings } from '../../models/session.model';
+import { AuthService } from '../../services/auth.service';
+import { SessionService } from '../../services/session.service';
 import { SettingsService } from '../../services/settings.service';
 
 @Component({
@@ -72,6 +75,21 @@ import { SettingsService } from '../../services/settings.service';
             </ion-select>
           </ion-item>
         </ion-list>
+
+        <ion-list class="account-list">
+          <ion-list-header>Compte</ion-list-header>
+          @if (userEmail) {
+            <ion-item lines="none">
+              <ion-label>
+                <p>Connecté en tant que</p>
+                <h2>{{ userEmail }}</h2>
+              </ion-label>
+            </ion-item>
+          }
+          <ion-item button detail="false" (click)="logout()">
+            <ion-label>Se déconnecter</ion-label>
+          </ion-item>
+        </ion-list>
       </div>
     </ion-content>
   `,
@@ -84,6 +102,21 @@ import { SettingsService } from '../../services/settings.service';
       .settings-header h1 {
         margin: 0 0 var(--space-6);
         font-size: 1.5rem;
+      }
+
+      .account-list {
+        margin-top: var(--space-6);
+      }
+
+      .account-list ion-item h2 {
+        font-family: var(--font-sans);
+        font-size: 0.9375rem;
+        font-weight: 500;
+      }
+
+      .account-list ion-item p {
+        font-size: 0.75rem;
+        color: var(--color-text-muted);
       }
     `,
   ],
@@ -100,6 +133,7 @@ import { SettingsService } from '../../services/settings.service';
   standalone: true,
 })
 export class SettingsPage implements OnInit, OnDestroy {
+  userEmail = '';
   settings: Settings = {
     defaultDuration: 10,
     defaultSound: 'silence',
@@ -120,10 +154,19 @@ export class SettingsPage implements OnInit, OnDestroy {
   ];
 
   private sub?: Subscription;
+  private userSub?: Subscription;
 
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly authService: AuthService,
+    private readonly sessionService: SessionService,
+    private readonly router: Router,
+  ) {}
 
   ngOnInit(): void {
+    this.userSub = this.authService.user$.subscribe((user) => {
+      this.userEmail = user?.email ?? '';
+    });
     this.sub = this.settingsService.settings$.subscribe((s) => {
       this.settings = s;
       this.applyTheme(s.theme);
@@ -138,6 +181,12 @@ export class SettingsPage implements OnInit, OnDestroy {
     await this.update({ theme: dark ? 'dark' : 'light' });
   }
 
+  async logout(): Promise<void> {
+    await this.authService.logout();
+    this.sessionService.clear();
+    await this.router.navigateByUrl('/login');
+  }
+
   warmupLabel(seconds: number): string {
     if (seconds === 0) return 'Aucun';
     return `${seconds} s`;
@@ -145,6 +194,7 @@ export class SettingsPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.userSub?.unsubscribe();
   }
 
   private applyTheme(theme: 'light' | 'dark'): void {

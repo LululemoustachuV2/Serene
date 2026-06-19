@@ -1,4 +1,5 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
+import { localDateKey } from '../../utils/date.utils';
 
 export interface CalendarDay {
   date: string;
@@ -17,7 +18,7 @@ export interface CalendarDay {
           }
         </div>
         <div class="calendar-grid">
-          @for (week of weeks; track week[0]?.date) {
+          @for (week of weeks; track $index) {
             <div class="calendar-week">
               @for (day of week; track day.date) {
                 <span
@@ -90,8 +91,8 @@ export interface CalendarDay {
 
       .calendar-day--active,
       .calendar-day--sample {
-        background: var(--color-text-muted);
-        border-color: var(--color-text-muted);
+        background: var(--color-text);
+        border-color: var(--color-text);
       }
 
       .calendar-day--empty {
@@ -115,14 +116,23 @@ export interface CalendarDay {
   ],
   standalone: true,
 })
-export class ContributionCalendarComponent implements OnChanges {
-  @Input() practicedDates = new Set<string>();
+export class ContributionCalendarComponent implements OnInit {
+  private practicedDates = new Set<string>();
+
+  @Input() set practicedDateKeys(keys: readonly string[]) {
+    this.practicedDates = new Set(keys);
+    this.rebuild();
+  }
 
   weeks: CalendarDay[][] = [];
   readonly weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   ariaLabel = 'Calendrier de pratique';
 
-  ngOnChanges(): void {
+  ngOnInit(): void {
+    this.rebuild();
+  }
+
+  private rebuild(): void {
     this.weeks = this.buildWeeks();
     const count = this.practicedDates.size;
     this.ariaLabel = `${count} jour${count > 1 ? 's' : ''} de pratique sur les 26 dernières semaines`;
@@ -143,7 +153,7 @@ export class ContributionCalendarComponent implements OnChanges {
     let currentWeek: CalendarDay[] = [];
 
     while (cursor <= today) {
-      const key = cursor.toISOString().slice(0, 10);
+      const key = localDateKey(cursor);
       currentWeek.push({
         date: key,
         practiced: this.practicedDates.has(key),

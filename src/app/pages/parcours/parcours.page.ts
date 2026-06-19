@@ -17,6 +17,7 @@ import { Subscription } from 'rxjs';
 import { ContributionCalendarComponent } from '../../components/contribution-calendar/contribution-calendar.component';
 import { Session } from '../../models/session.model';
 import { SessionService } from '../../services/session.service';
+import { localDateKey } from '../../utils/date.utils';
 
 @Component({
   selector: 'app-parcours',
@@ -51,7 +52,7 @@ import { SessionService } from '../../services/session.service';
 
         <section class="calendar-section">
           <h2 class="section-title">26 dernières semaines</h2>
-          <app-contribution-calendar [practicedDates]="practicedDates" />
+          <app-contribution-calendar [practicedDateKeys]="practiceDateKeys" />
         </section>
 
         <section class="history-section">
@@ -158,7 +159,7 @@ import { SessionService } from '../../services/session.service';
 })
 export class ParcoursPage implements OnInit, OnDestroy {
   sessions: Session[] = [];
-  practicedDates = new Set<string>();
+  practiceDateKeys: string[] = [];
   totalSessions = 0;
   totalTimeFormatted = '0 min';
   practiceDays = 0;
@@ -171,12 +172,13 @@ export class ParcoursPage implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    void this.sessionService.load();
     this.sub = this.sessionService.sessions$.subscribe((sessions) => {
       const completed = sessions.filter((s) => s.completed);
       this.sessions = completed;
       this.totalSessions = completed.length;
-      this.practicedDates = new Set(completed.map((s) => s.startTime.slice(0, 10)));
-      this.practiceDays = this.practicedDates.size;
+      this.practiceDateKeys = [...new Set(completed.map((s) => localDateKey(s.startTime)))];
+      this.practiceDays = this.practiceDateKeys.length;
 
       const totalSec = completed.reduce((sum, s) => sum + s.duration, 0);
       this.totalTimeFormatted = this.formatTotalTime(totalSec);

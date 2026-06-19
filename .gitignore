@@ -12,7 +12,9 @@
 /yarn.lock
 x
 # Environment files
-/.env
+/backend/node_modules/
+/backend/dist/
+/backend/.env
 
 # Angular CLI and build artefacts
 /.angular-cli.json
